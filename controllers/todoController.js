@@ -1,53 +1,39 @@
 const Todo = require("../models/Todo");
 
-// Get all todos
 const getTodos = async (req, res) => {
-  try {
-    const todos = await Todo.find();
-    res.status(200).json(todos);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const todos = await Todo.find({ user: req.user.id });
+  res.json(todos);
 };
 
-// Add a new todo
-const addTodo = async (req, res) => {
-  try {
-    const { title } = req.body;
-    if (!title) return res.status(400).json({ message: "Title is required" });
-
-    const newTodo = new Todo({ title });
-    await newTodo.save();
-    res.status(201).json(newTodo);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+const createTodo = async (req, res) => {
+  const { title, description, priority, dueDate } = req.body;
+  const todo = await Todo.create({
+    user: req.user.id,
+    title,
+    description,
+    priority,
+    dueDate,
+  });
+  res.status(201).json(todo);
 };
 
-// Update a todo
 const updateTodo = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updatedTodo = await Todo.findByIdAndUpdate(id, req.body, { new: true });
-    if (!updatedTodo) return res.status(404).json({ message: "Todo not found" });
+  const todo = await Todo.findById(req.params.id);
+  if (!todo || todo.user.toString() !== req.user.id)
+    return res.status(401).json({ message: "Not authorized" });
 
-    res.status(200).json(updatedTodo);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  Object.assign(todo, req.body);
+  await todo.save();
+  res.json(todo);
 };
 
-// Delete a todo
 const deleteTodo = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deletedTodo = await Todo.findByIdAndDelete(id);
-    if (!deletedTodo) return res.status(404).json({ message: "Todo not found" });
+  const todo = await Todo.findById(req.params.id);
+  if (!todo || todo.user.toString() !== req.user.id)
+    return res.status(401).json({ message: "Not authorized" });
 
-    res.status(200).json({ message: "Todo deleted" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  await todo.remove();
+  res.json({ message: "Todo deleted" });
 };
 
-module.exports = { getTodos, addTodo, updateTodo, deleteTodo };
+module.exports = { getTodos, createTodo, updateTodo, deleteTodo };
